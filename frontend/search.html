@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Find a Doctor</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<nav id="nav"></nav>
+<main>
+  <h1>Find a Doctor</h1>
+  <p class="subtitle">Search by specialty, name, or location.</p>
+
+  <div class="grid">
+    <div><label>Specialty</label><input type="text" id="specialty" placeholder="e.g. Cardiology" /></div>
+    <div><label>Name</label><input type="text" id="name" placeholder="e.g. Dr. Rao" /></div>
+    <div><label>Location</label><input type="text" id="location" placeholder="e.g. Andheri" /></div>
+  </div>
+  <button id="searchBtn">Search</button>
+
+  <h2>Results</h2>
+  <div id="results" class="grid"></div>
+</main>
+
+<script src="js/api.js"></script>
+<script>
+renderNav();
+
+async function search() {
+  const params = new URLSearchParams({
+    specialty: document.getElementById("specialty").value,
+    name: document.getElementById("name").value,
+    location: document.getElementById("location").value,
+  });
+  const doctors = await apiRequest("/doctors?" + params.toString());
+  const el = document.getElementById("results");
+
+  if (doctors.length === 0) {
+    el.innerHTML = "<p class='muted'>No doctors found.</p>";
+    return;
+  }
+
+  el.innerHTML = doctors.map(d => `
+    <div class="card">
+      <strong>${d.name}</strong>
+      <p class="muted">${d.specialty}</p>
+      <p class="muted">${d.clinic_location || ''}</p>
+      <a href="doctor-profile.html?id=${d.id}"><button class="small">View Profile &amp; Book</button></a>
+    </div>
+  `).join("");
+}
+
+document.getElementById("searchBtn").addEventListener("click", search);
+search();
+</script>
+</body>
+</html>

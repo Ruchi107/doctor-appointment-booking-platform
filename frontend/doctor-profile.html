@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Doctor Profile</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<nav id="nav"></nav>
+<main>
+  <div id="profileCard" class="card"></div>
+
+  <h2>Available Slots</h2>
+  <div id="alertBox"></div>
+  <div id="slotsList" class="grid"></div>
+</main>
+
+<script src="js/api.js"></script>
+<script>
+requireLogin(["patient"]);
+renderNav();
+
+const doctorId = new URLSearchParams(window.location.search).get("id");
+
+async function loadProfile() {
+  const doc = await apiRequest(`/doctors/${doctorId}`);
+  document.getElementById("profileCard").innerHTML = `
+    <h1>${doc.name}</h1>
+    <p class="muted">${doc.specialty}</p>
+    <p>${doc.qualifications || ''}</p>
+    <p class="muted">${doc.clinic_location || ''}</p>
+    ${doc.bio ? `<p>${doc.bio}</p>` : ''}
+  `;
+}
+
+async function loadSlots() {
+  const slots = await apiRequest(`/slots/doctor/${doctorId}`);
+  const el = document.getElementById("slotsList");
+  if (slots.length === 0) {
+    el.innerHTML = "<p class='muted'>No open slots in the next 7 days.</p>";
+    return;
+  }
+  el.innerHTML = slots.map(s => `
+    <div class="card">
+      <strong>${new Date(s.slot_date).toDateString()}</strong>
+      <p class="muted">${s.start_time.slice(0,5)} - ${s.end_time.slice(0,5)}</p>
+      <button class="small" onclick="book(${s.id})">Book This Slot</button>
+    </div>
+  `).join("");
+}
+
+async function book(slotId) {
+  const reason = prompt("Briefly describe the reason for your visit (optional):") || "";
+  try {
+    const res = await apiRequest("/appointments", { method: "POST", body: { slotId, reason } });
+    showAlert("alertBox", res.message, "success");
+    loadSlots();
+  } catch (err) {
+    showAlert("alertBox", err.message, "error");
+  }
+}
+
+loadProfile();
+loadSlots();
+</script>
+</body>
+</html>

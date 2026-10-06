@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>My Appointments</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<nav id="nav"></nav>
+<main>
+  <h1>My Appointments</h1>
+  <div id="alertBox"></div>
+  <div id="list"></div>
+</main>
+
+<script src="js/api.js"></script>
+<script>
+requireLogin(["patient"]);
+renderNav();
+
+async function loadAppointments() {
+  const appts = await apiRequest("/appointments/mine");
+  const el = document.getElementById("list");
+
+  if (appts.length === 0) {
+    el.innerHTML = "<p class='muted'>You have no appointments yet.</p>";
+    return;
+  }
+
+  el.innerHTML = appts.map(a => `
+    <div class="card">
+      <div class="row">
+        <strong>${a.doctor_name} — ${a.specialty}</strong>
+        <span class="badge ${a.status}">${a.status}</span>
+      </div>
+      <p class="muted">${new Date(a.slot_date).toDateString()} — ${a.start_time.slice(0,5)} to ${a.end_time.slice(0,5)}</p>
+      ${a.reason ? `<p class="muted">Reason: ${a.reason}</p>` : ''}
+      ${['requested','confirmed'].includes(a.status) ? `<button class="small danger" onclick="cancelAppt(${a.id})">Cancel</button>` : ''}
+    </div>
+  `).join("");
+}
+
+async function cancelAppt(id) {
+  if (!confirm("Cancel this appointment?")) return;
+  try {
+    const res = await apiRequest(`/appointments/${id}/cancel`, { method: "PATCH" });
+    showAlert("alertBox", res.message, "success");
+    loadAppointments();
+  } catch (err) {
+    showAlert("alertBox", err.message, "error");
+  }
+}
+
+loadAppointments();
+</script>
+</body>
+</html>

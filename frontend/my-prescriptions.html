@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>My Prescriptions</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<nav id="nav"></nav>
+<main>
+  <h1>My Prescriptions &amp; Medical Notes</h1>
+  <div id="list"></div>
+</main>
+
+<script src="js/api.js"></script>
+<script>
+requireLogin(["patient"]);
+renderNav();
+
+async function loadNotes() {
+  const notes = await apiRequest("/notes/mine");
+  const el = document.getElementById("list");
+
+  if (notes.length === 0) {
+    el.innerHTML = "<p class='muted'>No prescriptions on file yet.</p>";
+    return;
+  }
+
+  el.innerHTML = notes.map(n => `
+    <div class="card">
+      <strong>${n.doctor_name} — ${n.specialty}</strong>
+      <p class="muted">Visit date: ${new Date(n.slot_date).toDateString()}</p>
+      ${n.notes_text ? `<p>${n.notes_text}</p>` : ''}
+      <a href="${n.file_path}" target="_blank"><button class="small">View / Download File</button></a>
+    </div>
+  `).join("");
+}
+
+loadNotes();
+</script>
+</body>
+</html>

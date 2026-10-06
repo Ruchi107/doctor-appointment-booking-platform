@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Manage Slots</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<nav id="nav"></nav>
+<main>
+  <h1>Manage Your Slots</h1>
+  <div id="alertBox"></div>
+
+  <h2>➕ Add a New Slot</h2>
+  <div class="card" style="max-width:420px;">
+    <form id="slotForm">
+      <label>Date</label>
+      <input type="date" id="slotDate" required />
+
+      <label>Start Time</label>
+      <input type="time" id="startTime" required />
+
+      <label>End Time</label>
+      <input type="time" id="endTime" required />
+
+      <button type="submit">Add Slot</button>
+    </form>
+  </div>
+
+  <h2>📅 Your Slots</h2>
+  <div id="slotsList"></div>
+</main>
+
+<script src="js/api.js"></script>
+<script>
+requireLogin(["provider"]);
+renderNav();
+
+async function loadSlots() {
+  const slots = await apiRequest("/slots/mine");
+  const el = document.getElementById("slotsList");
+  if (slots.length === 0) {
+    el.innerHTML = "<p class='muted'>No slots created yet.</p>";
+    return;
+  }
+  el.innerHTML = slots.map(s => `
+    <div class="card row">
+      <span>
+        <strong>${new Date(s.slot_date).toDateString()}</strong> — ${s.start_time.slice(0,5)} to ${s.end_time.slice(0,5)}
+        <span class="badge ${s.status === 'open' ? 'confirmed' : s.status === 'blocked' ? 'cancelled' : 'requested'}">${s.status}</span>
+      </span>
+      <span>
+        ${s.status === 'open' ? `<button class="small danger" onclick="blockSlot(${s.id})">Block</button>` : ''}
+        ${s.status === 'blocked' ? `<button class="small" onclick="unblockSlot(${s.id})">Unblock</button>` : ''}
+      </span>
+    </div>
+  `).join("");
+}
+
+async function blockSlot(id) {
+  try {
+    await apiRequest(`/slots/${id}/block`, { method: "PATCH" });
+    loadSlots();
+  } catch (err) {
+    showAlert("alertBox", err.message, "error");
+  }
+}
+async function unblockSlot(id) {
+  await apiRequest(`/slots/${id}/unblock`, { method: "PATCH" });
+  loadSlots();
+}
+
+document.getElementById("slotForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    await apiRequest("/slots", {
+      method: "POST",
+      body: {
+        slotDate: document.getElementById("slotDate").value,
+        startTime: document.getElementById("startTime").value,
+        endTime: document.getElementById("endTime").value,
+      },
+    });
+    showAlert("alertBox", "Slot added.", "success");
+    document.getElementById("slotForm").reset();
+    loadSlots();
+  } catch (err) {
+    showAlert("alertBox", err.message, "error");
+  }
+});
+
+loadSlots();
+</script>
+</body>
+</html>

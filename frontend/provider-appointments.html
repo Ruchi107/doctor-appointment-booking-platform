@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Appointment Requests</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<nav id="nav"></nav>
+<main>
+  <h1>Appointment Requests</h1>
+  <div id="alertBox"></div>
+  <div id="list"></div>
+</main>
+
+<script src="js/api.js"></script>
+<script>
+requireLogin(["provider"]);
+renderNav();
+
+async function loadAppointments() {
+  const appts = await apiRequest("/appointments/provider");
+  const el = document.getElementById("list");
+
+  if (appts.length === 0) {
+    el.innerHTML = "<p class='muted'>No appointments yet.</p>";
+    return;
+  }
+
+  el.innerHTML = appts.map(a => `
+    <div class="card">
+      <div class="row">
+        <strong>${a.patient_name}</strong>
+        <span class="badge ${a.status}">${a.status}</span>
+      </div>
+      <p class="muted">${new Date(a.slot_date).toDateString()} — ${a.start_time.slice(0,5)} to ${a.end_time.slice(0,5)}</p>
+      ${a.reason ? `<p class="muted">Reason: ${a.reason}</p>` : ''}
+
+      ${a.status === 'requested' ? `
+        <button class="small" onclick="decide(${a.id}, 'confirmed')">✅ Accept</button>
+        <button class="small danger" onclick="decide(${a.id}, 'rejected')">❌ Decline</button>
+      ` : ''}
+
+      ${a.status === 'confirmed' ? `
+        <div style="margin-top:10px;">
+          <label>Upload medical notes / prescription</label>
+          <input type="file" id="file-${a.id}" accept="image/*,application/pdf" />
+          <textarea id="notes-${a.id}" rows="2" placeholder="Optional notes text"></textarea>
+          <button class="small" onclick="uploadNote(${a.id})">Upload &amp; Mark Completed</button>
+        </div>
+      ` : ''}
+    </div>
+  `).join("");
+}
+
+async function decide(id, decision) {
+  try {
+    const res = await apiRequest(`/appointments/${id}/decide`, { method: "PATCH", body: { decision } });
+    showAlert("alertBox", res.message, "success");
+    loadAppointments();
+  } catch (err) {
+    showAlert("alertBox", err.message, "error");
+  }
+}
+
+async function uploadNote(appointmentId) {
+  const fileInput = document.getElementById(`file-${appointmentId}`);
+  const notesText = document.getElementById(`notes-${appointmentId}`).value;
+  if (!fileInput.files[0]) {
+    showAlert("alertBox", "Please choose a file to upload.", "error");
+    return;
+  }
+  try {
+    const formData = new FormData();
+    formData.append("appointmentId", appointmentId);
+    formData.append("notesText", notesText);
+    formData.append("noteFile", fileInput.files[0]);
+    const res = await apiRequest("/notes/upload", { method: "POST", body: formData, isFormData: true });
+    showAlert("alertBox", res.message, "success");
+    loadAppointments();
+  } catch (err) {
+    showAlert("alertBox", err.message, "error");
+  }
+}
+
+loadAppointments();
+</script>
+</body>
+</html>
